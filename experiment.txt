@@ -1,0 +1,176 @@
+Email Test Sizing Guide for Repo-Stage Customers
+=================================================
+
+1. Define the experiment clearly
+--------------------------------
+You are running an A/B (50/50) test on customers entering repo stages.
+
+- Population: customers entering repo stages (about 400 per day).
+- Split: 50% control (current or no email) vs 50% treatment (new email).
+- Primary KPI (binary example):
+  - Cured within 30 days (yes/no), or
+  - Made any payment within 14 days (yes/no), or
+  - Promise-to-pay obtained within X days (yes/no).
+
+Pick exactly ONE primary KPI and a fixed observation window (e.g., 30 days after email send). All analysis is based on this binary outcome (success/fail).
+
+2. Get the baseline rate from history
+-------------------------------------
+From historical data BEFORE the new email:
+
+1. Pull all accounts entering repo stages over a clean period (e.g., last 3–6 months).
+2. For each account, define success = 1 if it hit your KPI within the window (e.g., cured within 30 days), otherwise 0.
+3. Compute the baseline rate:
+
+   p_baseline = (# of successes) / (# of accounts)
+
+Example:
+- 1,500 accounts entered repo in that historical period.
+- 300 cured within 30 days.
+- Baseline cure rate:
+
+  p_baseline = 300 / 1500 = 0.20 (20%).
+
+This baseline rate is your p1 in sample size formulas.
+
+3. Decide the Minimum Detectable Effect (MDE)
+---------------------------------------------
+You must decide what change is worth detecting. That is the MDE.
+
+Example with baseline cure = 20%:
+
+- Business requirement: “We only change strategy if the email improves cure by at least 5 percentage points.”
+- Then:
+  - p1 = 0.20 (control).
+  - p2 = 0.25 (treatment).
+  - Δ = p2 - p1 = 0.05 (5 percentage points).
+
+Note: You can think in relative terms (20% → 25% is a 25% relative lift), but the math is based on the absolute difference (Δ).
+
+4. Set your statistical thresholds
+----------------------------------
+Typical choices:
+
+- Significance level (α): 0.05 (5% chance of false positive).
+- Power (1–β): 0.80 (80% chance to detect a true effect of size Δ).
+- Test type: two-sided.
+
+These correspond to z-values:
+
+- Z_(1−α/2) ≈ 1.96 (for α = 0.05, two-sided).
+- Z_(1−β)  ≈ 0.84 (for power = 0.80).
+
+5. Use the two-proportion sample size formula
+---------------------------------------------
+For an A/B test on two proportions with equal-sized groups, the approximate sample size PER GROUP is:
+
+   n ≈ [ 2 * p̄ * (1 − p̄) * (Z_(1−α/2) + Z_(1−β))² ] / Δ²
+
+Where:
+- p1 = baseline rate (control).
+- p2 = baseline + MDE (treatment target).
+- p̄ = (p1 + p2) / 2 (average rate).
+- Δ = p2 − p1 (absolute lift).
+
+Worked example:
+- p1 = 0.20
+- p2 = 0.25
+- Δ = 0.05
+- p̄ = (0.20 + 0.25) / 2 = 0.225
+- Z_(1−α/2) = 1.96
+- Z_(1−β) = 0.84
+
+Step-by-step:
+
+1) Compute p̄ (1 − p̄):
+   1 − p̄ = 1 − 0.225 = 0.775
+   p̄ (1 − p̄) = 0.225 × 0.775 = 0.174375
+
+2) Multiply by 2:
+   2 × 0.174375 = 0.34875
+
+3) Compute (Z_(1−α/2) + Z_(1−β))²:
+   1.96 + 0.84 = 2.80
+   2.80² = 7.84
+
+4) Numerator:
+   0.34875 × 7.84 ≈ 2.7342
+
+5) Denominator (Δ²):
+   Δ = 0.05
+   Δ² = 0.0025
+
+6) Divide:
+   n ≈ 2.7342 / 0.0025 = 1093.68
+
+Result:
+You need approximately 1,100 accounts per group → ~2,200 total accounts to detect a 5 percentage-point lift (20% → 25%) with α = 0.05 and power = 0.80.
+
+6. Translate sample size into test duration
+-------------------------------------------
+You have ~400 new eligible accounts per day.
+
+With a 50/50 split:
+- Treatment: ~200 per day.
+- Control:   ~200 per day.
+
+To reach ~1,100 per group:
+- 1,100 / 200 = 5.5 days.
+
+So you need about 6 days of traffic to get enough sample size, assuming 400 new accounts per day. This fits easily within a 2-week window.
+
+7. General process you can implement in Excel
+---------------------------------------------
+1. Pull historical data to estimate p_baseline.
+
+2. Choose MDE (Δ):
+   - Example: 0.03, 0.04, or 0.05 absolute improvement.
+
+3. Set α and power:
+   - α = 0.05, power = 0.80 (Z_(1−α/2) = 1.96, Z_(1−β) = 0.84).
+
+4. In Excel, define:
+   - p1 = baseline rate (e.g., 0.20).
+   - p2 = p1 + Δ (e.g., 0.25).
+   - pbar = (p1 + p2) / 2.
+   - Z_alpha = 1.96.
+   - Z_beta  = 0.84.
+   - numerator = 2 * pbar * (1 − pbar) * (Z_alpha + Z_beta)^2.
+   - denominator = (p2 − p1)^2.
+   - n_per_group = numerator / denominator.
+   - total_n = 2 * n_per_group.
+   - days_needed = total_n / 400 (since you have 400 new customers per day).
+
+5. Adjust:
+   - If days_needed > allowed test window, either:
+     - Increase MDE (accept that you’ll only detect larger lifts),
+     - Extend the runtime,
+     - Or accept lower power (e.g., 70%).
+
+8. One-time blast vs 2-week rolling test
+----------------------------------------
+From a statistical standpoint, it doesn’t matter whether you:
+- Send to one big cohort in a single day, or
+- Run a continuously rolling test over multiple days,
+
+AS LONG AS:
+- Assignment to treatment/control is random within each day,
+- You include all assigned accounts,
+- The KPI window is consistently defined (e.g., “cured within 30 days of send”).
+
+Practically:
+- A 1–2 week run helps smooth out day-of-week and payday effects.
+- With your volume (400/day), a 1-week test is usually enough to detect a 5 pp lift.
+
+9. Final checklist
+------------------
+1. Define KPI and time window.
+2. Estimate baseline rate from historical data.
+3. Agree with business on MDE (Δ).
+4. Choose α and power.
+5. Calculate required n_per_group and total_n.
+6. Convert total_n into days using 400/day and 50/50 split.
+7. Confirm that the runtime is acceptable and design the experiment logic (randomization, exclusions, etc.).
+8. Run the test, wait for the full KPI window, then analyze with a two-proportion z-test or equivalent.
+
+This process lets you work backwards from statistical significance to the actual number of repo-stage customers and days you need for your email test.
